@@ -29,10 +29,11 @@ define('CDXENDPOINT', 'http://wayback.archive-it.org/all/timemap/cdx?url=');
 define('WAYBACKENDPOINT', 'http://wayback.archive-it.org/');
 
 $options = getopt('c:u:');
-
 $collection_id = $options['c'];
 $path_to_url_list = $options['u'];
 $urls = file($path_to_url_list);
+
+$temp_filename = uniqid();
 
 foreach ($urls as $url) {
     $cdx_entries = array();
@@ -55,15 +56,13 @@ foreach ($urls as $url) {
     // timestamp and take the most recent.
     $cdx = $cdx_entries[0];
 
-    // @todo: '7100' here is the collection ID. In production, we'll need to get that
-    // from somewhere - maybe as a parameter to this script?
     $file_to_download = WAYBACKENDPOINT . $collection_id . '/' . $cdx[1] . 'id_/' . $cdx[2];
     $client = new GuzzleHttp\Client();
     $res = $client->request('GET', $file_to_download);
-    file_put_contents('temp.htm', $res->getBody());
+    file_put_contents($temp_filename, $res->getBody());
 
     // Get the raw binary digest of the retrieved file.
-    $sha1 = sha1_file('temp.htm', TRUE);
+    $sha1 = sha1_file($temp_filename, TRUE);
 
     // Archive-It stores its sha1 digests in Base32, so we need to convert.
     $encoded = Base32::encode($sha1);
@@ -74,5 +73,5 @@ foreach ($urls as $url) {
         print "WARNING: CDX/C checksum {$cdx[2]} invalid.\n";
     }
 
-    unlink('temp.htm');
+    unlink($temp_filename);
 }
