@@ -28,7 +28,10 @@ use GuzzleHttp\Exception\ServerException;
 define('CDXENDPOINT', 'http://wayback.archive-it.org/all/timemap/cdx?url=');
 define('WAYBACKENDPOINT', 'http://wayback.archive-it.org/');
 
-$path_to_url_list = trim($argv[1]);
+$options = getopt('c:u:');
+
+$collection_id = $options['c'];
+$path_to_url_list = $options['u'];
 $urls = file($path_to_url_list);
 
 foreach ($urls as $url) {
@@ -54,7 +57,6 @@ foreach ($urls as $url) {
 
     // @todo: '7100' here is the collection ID. In production, we'll need to get that
     // from somewhere - maybe as a parameter to this script?
-    $collection_id = '7100';
     $file_to_download = WAYBACKENDPOINT . $collection_id . '/' . $cdx[1] . 'id_/' . $cdx[2];
     $client = new GuzzleHttp\Client();
     $res = $client->request('GET', $file_to_download);
