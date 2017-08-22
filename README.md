@@ -15,9 +15,9 @@ Script to verify SHA-1 checksums of files in Archive-It collections.
 
 ## Overview and usage
 
-The input for this script is a list of URLs that are known to be archived in Archive-It, one URL per line. Once you have the list of URLs, run the script with its two required parameters, `-c` specifying the Archive-It collection ID, and `-u` specifying the path to the input file: 
+The input for this script is a list of URLs that are known to be archived in Archive-It, one URL per line. Once you have the list of URLs, run the script with its two required parameters, `-c` specifying the Archive-It collection ID, and `-u` specifying the path to the file containing the URLs to audit: 
 
-`php audit.php -c 7100 -u urls.txt 
+`php audit.php -c 7100 -u urls.txt`
 
 The script will iterate through the list of URLs, use the Archive-It CDX/C API to retrieve information about the URL, fetch the content associated with the URL from Archive-It, and validate the content's SHA-1 checksum. If the checksum validates, the script will output a message indicating success; if the checksum fails to validate, the script will output a message indicating failure.
 
