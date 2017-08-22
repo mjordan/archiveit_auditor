@@ -1,0 +1,8 @@
+{
+    "require": {
+        "php": ">=5.5.0",
+        "christian-riesen/base32": "*",
+        "guzzlehttp/guzzle": "~6.0",
+        "monolog/monolog": "~1.13"
+    }
+}
