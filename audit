@@ -8,9 +8,6 @@
  *
  * Input is a file of URLs preserved in Archive-It.
  *
- * @todo:
- * -Add Guzzle error handling.
- *
  * This script is distributed under the Unlicense. For more information, see the LICENSE
  * file or visit http://unlicense.org.
  */
@@ -43,14 +40,17 @@ $log->pushHandler($log_stream_handler);
 $url_num = 0;
 foreach ($urls as $url) {
     $url_num++;
-    $cdx = get_cdx($url, $log);
+    if (!$cdx = get_cdx($url, $log)) {
+        continue;
+    }
 
     $wayback_url = WAYBACKENDPOINT . $collection_id . '/' . $cdx[1] . 'id_/' . $cdx[2];
-    $content = get_content($wayback_url, $log);
+    if (!$content = get_content($wayback_url, $log)) {
+        continue;
+    }
+
     file_put_contents($temp_filename, $content);
-
-    compare_digests($temp_filename, $cdx, $log);   
-
+    compare_digests($temp_filename, $cdx, $log);
     unlink($temp_filename);
 }
 
@@ -69,12 +69,24 @@ print "Audit of $url_num ULRs complete. Results are in $path_to_log.\n";
  *   '200' HTTP response code, and the most recent timestamp value of all
  *   the rows with an HTTP 200 in the CDX/C record.
  */
-function get_cdx($url) {
+function get_cdx($url, $log) {
     $cdx_entries = array();
-    $client = new GuzzleHttp\Client();
-    $cdx_request = CDXENDPOINT . trim($url);
-    $res = $client->request('GET', $cdx_request);
-    $cdx_record = $res->getBody();
+    try {
+        $client = new GuzzleHttp\Client();
+        $cdx_request = CDXENDPOINT . trim($url);
+        $res = $client->request('GET', $cdx_request);
+        $cdx_record = $res->getBody();
+    } catch (Exception $e) {
+        if ($e instanceof RequestException or $e instanceof ClientException or $e instanceof ServerException ) {
+            $log->addError(Psr7\str($e->getRequest()));
+            if ($e->hasResponse()) {
+                $log->addError(Psr7\str($e->getResponse()));
+                print Psr7\str($e->getResponse()) . "\n";
+            }
+            return false;
+        }
+    }
+
     $cdx_rows = preg_split("/\\r\\n|\\r|\\n/", $cdx_record);
     foreach ($cdx_rows as $key => $entry) {
         if (strlen($entry)) {
@@ -109,9 +121,20 @@ function get_cdx($url) {
  *   The file's contents.
  */
 function get_content($wayback_url, $log) {
-    $client = new GuzzleHttp\Client();
-    $res = $client->request('GET', $wayback_url);
-    return $res->getBody();
+    try {
+        $client = new GuzzleHttp\Client();
+        $res = $client->request('GET', $wayback_url);
+        return $res->getBody();
+    } catch (Exception $e) {
+        if ($e instanceof RequestException or $e instanceof ClientException or $e instanceof ServerException ) {
+            $log->addError(Psr7\str($e->getRequest()));
+            if ($e->hasResponse()) {
+                $log->addError(Psr7\str($e->getResponse()));
+                print Psr7\str($e->getResponse()) . "\n";
+            }
+            return false;
+        }
+    }
 }
 
 /**
@@ -137,6 +160,6 @@ function compare_digests($temp_filename, $cdx, $log) {
         $log->addInfo("CDX/C checksum for {$cdx[2]} validated.");
     }
     else {
-        $log->addError("CDX/C checksum for {$cdx[2]} invalid.");
+        $log->addWarning("CDX/C checksum for {$cdx[2]} invalid.");
     }
 }

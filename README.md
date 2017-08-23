@@ -26,7 +26,6 @@ The script will iterate through the list of URLs, use the Archive-It CDX/C API t
 This script is currently under development. Some outstanding tasks include:
 
 * Figure out how to generate a list of URLs to test (e.g., via an Archive-It API, from downloaded crawl reports, etc.).
-* Add error handling (and logging) around the HTTP requests.
 
 ## Maintainer
 
