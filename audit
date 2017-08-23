@@ -6,7 +6,7 @@
  * Script to fetch the Archive-It CDX/C record for a given URL, then fetch the content
  * of the request to the URL, then validate its SHA-1 checksum.
  *
- * Input is a file of URLs preserved in Archive-It.
+ * Input is a file of URLs preserved in Archive-It, one URL per line.
  *
  * This script is distributed under the Unlicense. For more information, see the LICENSE
  * file or visit http://unlicense.org.
@@ -79,7 +79,7 @@ function get_cdx($url, $log) {
         $res = $client->request('GET', $cdx_request);
         $cdx_record = $res->getBody();
     } catch (Exception $e) {
-        if ($e instanceof RequestException or $e instanceof ClientException or $e instanceof ServerException ) {
+        if ($e instanceof RequestException or $e instanceof ConnectException or $e instanceof ClientException or $e instanceof ServerException ) {
             $log->addError(Psr7\str($e->getRequest()));
             if ($e->hasResponse()) {
                 $log->addError(Psr7\str($e->getResponse()));
@@ -130,7 +130,7 @@ function get_content($wayback_url, $log) {
         $res = $client->request('GET', $wayback_url);
         return $res->getBody();
     } catch (Exception $e) {
-        if ($e instanceof RequestException or $e instanceof ClientException or $e instanceof ServerException ) {
+        if ($e instanceof RequestException or $e instanceof ConnectException or $e instanceof ClientException or $e instanceof ServerException ) {
             $log->addError(Psr7\str($e->getRequest()));
             if ($e->hasResponse()) {
                 $log->addError(Psr7\str($e->getResponse()));
@@ -158,8 +158,10 @@ function compare_digests($temp_filename, $cdx, $log) {
     // Get the raw binary digest of the retrieved file.
     $sha1 = sha1_file($temp_filename, TRUE);
     // Archive-It stores its sha1 digests in Base32, so we need to
-    // convert the binary to Base32 for comparison.
+    // convert the binary digest to Base32 for comparison.
     $base32_encoded = Base32::encode($sha1);
+
+    // Perform the comparison and log the result.
     if ($base32_encoded == $cdx[5]) {
         $log->addInfo("CDX/C checksum for {$cdx[2]} validated.");
     }
