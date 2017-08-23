@@ -10,7 +10,9 @@
  *
  * @todo:
  * -Add Guzzle error handling.
- * -Sort CDX/C record rows so we can use the most recent for our checksum validation.
+ *
+ * This script is distributed under the Unlicense. For more information, see the LICENSE
+ * file or visit http://unlicense.org.
  */
 
 require_once 'vendor/autoload.php';
@@ -26,14 +28,14 @@ use GuzzleHttp\Exception\ServerException;
 define('CDXENDPOINT', 'http://wayback.archive-it.org/all/timemap/cdx?url=');
 define('WAYBACKENDPOINT', 'http://wayback.archive-it.org/');
 
-$options = getopt('c:u:');
+$options = getopt('c:u:l:');
 $collection_id = $options['c'];
 $path_to_url_list = $options['u'];
+$path_to_log = isset($options['l']) ? $options['l']: 'archiveit_audit.log';
 $urls = file($path_to_url_list);
 
 $temp_filename = uniqid();
 
-$path_to_log = 'archiveit_log.log';
 $log = new Monolog\Logger('Archive-It Auditor Log');
 $log_stream_handler= new Monolog\Handler\StreamHandler($path_to_log, Logger::INFO);
 $log->pushHandler($log_stream_handler);
@@ -55,7 +57,7 @@ foreach ($urls as $url) {
 print "Audit of $url_num ULRs complete. Results are in $path_to_log.\n";
 
 /**
- * Gets the entry in the CDX/C record that we use to validate the URL.
+ * Gets the entry (row) in the CDX/C record that we use to validate the URL.
  *
  * @param string $url
  *   The URL to validate.
@@ -63,7 +65,9 @@ print "Audit of $url_num ULRs complete. Results are in $path_to_log.\n";
  *   The Monolog log object.
  *
  * @return array
- *   An array version of the CDX/C record entry.
+ *   An array version of the CDX/C record entry. This entry will have a
+ *   '200' HTTP response code, and the most recent timestamp value of all
+ *   the rows with an HTTP 200 in the CDX/C record.
  */
 function get_cdx($url) {
     $cdx_entries = array();
@@ -82,10 +86,15 @@ function get_cdx($url) {
         }
     }
 
-    // @todo: In production, there may be more than one 200 record, so we'll
-    // need to sort by timestamp and take the most recent.
-    $cdx = $cdx_entries[0];
-    return $cdx;
+    // Pick out the CDX/C entry that hast the most recent timestamp.
+    $latest_cdx_entry = $cdx_entries[0];
+    foreach ($cdx_entries as $cdx_entry) {
+        if (strtotime($cdx_entry[1]) > strtotime($latest_cdx_entry[1])) {
+            $latest_cdx_entry = $cdx_entry;
+        }
+    }
+
+    return $latest_cdx_entry;
 }
 
 /**
