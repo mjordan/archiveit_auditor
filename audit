@@ -10,7 +10,6 @@
  *
  * @todo:
  * -Add Guzzle error handling.
- * -Log results.
  * -Sort CDX/C record rows so we can use the most recent for our checksum validation.
  */
 
