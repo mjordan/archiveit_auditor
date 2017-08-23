@@ -31,6 +31,8 @@ $path_to_url_list = $options['u'];
 $path_to_log = isset($options['l']) ? $options['l']: 'archiveit_audit.log';
 $urls = file($path_to_url_list);
 
+// Filename assigned to the retrieved file. File is saved in the current
+// working directory and deleted after the checksum verification.
 $temp_filename = uniqid();
 
 $log = new Monolog\Logger('Archive-It Auditor Log');
@@ -87,9 +89,11 @@ function get_cdx($url, $log) {
         }
     }
 
+    // Split the CDX/C record string into rows.
     $cdx_rows = preg_split("/\\r\\n|\\r|\\n/", $cdx_record);
     foreach ($cdx_rows as $key => $entry) {
         if (strlen($entry)) {
+            // Then convert each row into an array.
             $entry_record = explode(' ', $entry);
             // We only want entries resulting from an HTTP 200 response.
             if ($entry_record[4] == '200') {
@@ -98,7 +102,7 @@ function get_cdx($url, $log) {
         }
     }
 
-    // Pick out the CDX/C entry that hast the most recent timestamp.
+    // Pick out the CDX/C row array that hast the most recent timestamp.
     $latest_cdx_entry = $cdx_entries[0];
     foreach ($cdx_entries as $cdx_entry) {
         if (strtotime($cdx_entry[1]) > strtotime($latest_cdx_entry[1])) {

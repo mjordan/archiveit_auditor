@@ -19,7 +19,7 @@ The input for this script is a list of URLs that are known to be archived in Arc
 
 `./audit -c 7100 -u urls.txt`
 
-The script will iterate through the list of URLs, use the Archive-It CDX/C API to retrieve information about the URL, fetch the content associated with the URL from Archive-It, and validate the content's SHA-1 checksum. Results of the vaidation are written to a file specified in the optional `-l` parameter, which defaults to 'archiveit_audit.log'.
+The script will iterate through the list of URLs, use the Archive-It CDX/C API to retrieve information about the URL, fetch the content associated with the URL from Archive-It, and validate the content's SHA-1 checksum. Results of the validation are written to a log file specified in the optional `-l` parameter, which defaults to 'archiveit_audit.log'. Errors are also logged to this file.
 
 ## To do
 
