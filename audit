@@ -3,13 +3,13 @@
 
 /**
  * @file
- * Script to fetch the Archive-It CDX/C record for a given URL, then fetch the content
- * of the request to the URL, then validate its SHA-1 checksum.
+ * Script to fetch the Archive-It CDX/C for a given URL, then fetch the content
+ * associated with the URL, then validate its SHA-1 checksum.
  *
  * Input is a file of URLs preserved in Archive-It, one URL per line.
  *
- * This script is distributed under the Unlicense. For more information, see the LICENSE
- * file or visit http://unlicense.org.
+ * This script is distributed under the Unlicense. For more information, see the
+ * LICENSE file or visit http://unlicense.org.
  */
 
 require_once 'vendor/autoload.php';
@@ -42,24 +42,24 @@ $log->pushHandler($log_stream_handler);
 $url_num = 0;
 foreach ($urls as $url) {
     $url_num++;
-    if (!$cdx = get_cdx($url, $log)) {
+    if (!$cdx_record = get_cdx_record($url, $log)) {
         continue;
     }
 
-    $wayback_url = WAYBACKENDPOINT . $collection_id . '/' . $cdx[1] . 'id_/' . $cdx[2];
+    $wayback_url = WAYBACKENDPOINT . $collection_id . '/' . $cdx_record[1] . 'id_/' . $cdx_record[2];
     if (!$content = get_content($wayback_url, $log)) {
         continue;
     }
 
     file_put_contents($temp_filename, $content);
-    compare_digests($temp_filename, $cdx, $log);
+    compare_digests($temp_filename, $cdx_record, $log);
     unlink($temp_filename);
 }
 
 print "Audit of $url_num ULRs complete. Results are in $path_to_log.\n";
 
 /**
- * Gets the entry (row) in the CDX/C record that we use to validate the URL.
+ * Gets the CDX/C "record" (row) that we use to validate the URL.
  *
  * @param string $url
  *   The URL to validate.
@@ -67,17 +67,16 @@ print "Audit of $url_num ULRs complete. Results are in $path_to_log.\n";
  *   The Monolog log object.
  *
  * @return array
- *   An array version of the CDX/C record entry. This entry will have a
- *   '200' HTTP response code, and the most recent timestamp value of all
- *   the rows with an HTTP 200 in the CDX/C record.
+ *   An array version of the CDX/C record. This entry will have a '200'
+ *   HTTP response code, and the most recent timestamp value of all the
+ *   rows with an HTTP 200 in the CDX/C record.
  */
-function get_cdx($url, $log) {
-    $cdx_entries = array();
+function get_cdx_record($url, $log) {
     try {
         $client = new GuzzleHttp\Client();
         $cdx_request = CDXENDPOINT . trim($url);
         $res = $client->request('GET', $cdx_request);
-        $cdx_record = $res->getBody();
+        $cdxc = $res->getBody();
     } catch (Exception $e) {
         if ($e instanceof RequestException or $e instanceof ConnectException or $e instanceof ClientException or $e instanceof ServerException ) {
             $log->addError(Psr7\str($e->getRequest()));
@@ -90,7 +89,8 @@ function get_cdx($url, $log) {
     }
 
     // Split the CDX/C record string into rows.
-    $cdx_rows = preg_split("/\\r\\n|\\r|\\n/", $cdx_record);
+    $cdx_rows = preg_split("/\\r\\n|\\r|\\n/", $cdxc);
+    $cdx_entries = array();
     foreach ($cdx_rows as $key => $entry) {
         if (strlen($entry)) {
             // Then convert each row into an array.
@@ -102,15 +102,16 @@ function get_cdx($url, $log) {
         }
     }
 
-    // Pick out the CDX/C row array that hast the most recent timestamp.
-    $latest_cdx_entry = $cdx_entries[0];
+    // Pick out the CDX/C record array that hast the most recent timestamp.
+    // We see the comparison with the first CDX/C record.
+    $latest_cdx_record = $cdx_entries[0];
     foreach ($cdx_entries as $cdx_entry) {
-        if (strtotime($cdx_entry[1]) > strtotime($latest_cdx_entry[1])) {
-            $latest_cdx_entry = $cdx_entry;
+        if (strtotime($cdx_entry[1]) > strtotime($latest_cdx_record[1])) {
+            $latest_cdx_record = $cdx_entry;
         }
     }
 
-    return $latest_cdx_entry;
+    return $latest_cdx_record;
 }
 
 /**
@@ -146,7 +147,7 @@ function get_content($wayback_url, $log) {
  *
  * @param string $temp_filename
  *   The name of the retrived file.
- * @param array $cdx
+ * @param array $cdx_record
  *   The CDX/C record array.
  * @param object $log
  *   The Monolog log object.
@@ -154,7 +155,7 @@ function get_content($wayback_url, $log) {
  * @return string
  *   The file's contents.
  */
-function compare_digests($temp_filename, $cdx, $log) {
+function compare_digests($temp_filename, $cdx_record, $log) {
     // Get the raw binary digest of the retrieved file.
     $sha1 = sha1_file($temp_filename, TRUE);
     // Archive-It stores its sha1 digests in Base32, so we need to
@@ -162,10 +163,10 @@ function compare_digests($temp_filename, $cdx, $log) {
     $base32_encoded = Base32::encode($sha1);
 
     // Perform the comparison and log the result.
-    if ($base32_encoded == $cdx[5]) {
-        $log->addInfo("CDX/C checksum for {$cdx[2]} validated.");
+    if ($base32_encoded == $cdx_record[5]) {
+        $log->addInfo("CDX/C checksum for {$cdx_record[2]} validated.");
     }
     else {
-        $log->addWarning("CDX/C checksum for {$cdx[2]} invalid.");
+        $log->addWarning("CDX/C checksum for {$cdx_record[2]} invalid.");
     }
 }
